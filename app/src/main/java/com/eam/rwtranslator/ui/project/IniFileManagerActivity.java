@@ -14,7 +14,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.DocumentsContract;
 import androidx.documentfile.provider.DocumentFile;
-import androidx.preference.PreferenceManager;
+
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
@@ -42,6 +42,7 @@ import com.eam.rwtranslator.data.model.IniFileModel;
 import com.eam.rwtranslator.ui.fragment.ConfigTranslatorFragment;
 import com.eam.rwtranslator.ui.fragment.ConfigLLMTranslatorFragment;
 import com.eam.rwtranslator.ui.editor.SectionEditorActivity;
+import com.eam.rwtranslator.ui.setting.AppSettings;
 import com.eam.rwtranslator.ui.setting.SettingActivity;
 import com.eam.rwtranslator.ui.common.UniversalMultiSelectManager;
 import com.eam.rwtranslator.ui.common.MultiSelectDecorator;
@@ -496,26 +497,24 @@ public class IniFileManagerActivity extends AppCompatActivity {
                           });
                       builder.create().show();
                     }
-                    case 1 -> {
-                      du.createSimpleDialog(
-                          getString(R.string.project_act_delete_title),
-                          getString(R.string.project_act_delete_message),
-                          (dialog, which) -> {
-                            dialog.dismiss();
-                            file.delete();
-                            showMsg(getString(R.string.project_act_deleted));
-                            // 更新缓存文件
-                            try {
-                              DataSet.getCurrentProject().getTranslationIniFiles().remove(data.getRwini());
-                              DataSet.getCurrentProject().serialize();
-                            } catch (Exception err) {
-                              Timber.e(err);
-                            }
-                            // 更新UI
-                            iniFileManagerAdapter.getMData().remove(data);
-                            iniFileManagerAdapter.notifyItemRemoved(position);
-                          }).show();
-                    }
+                    case 1 -> du.createSimpleDialog(
+                        getString(R.string.project_act_delete_title),
+                        getString(R.string.project_act_delete_message),
+                        (dialog, which) -> {
+                          dialog.dismiss();
+                          file.delete();
+                          showMsg(getString(R.string.project_act_deleted));
+                          // 更新缓存文件
+                          try {
+                            DataSet.getCurrentProject().getTranslationIniFiles().remove(data.getRwini());
+                            DataSet.getCurrentProject().serialize();
+                          } catch (Exception err) {
+                            Timber.e(err);
+                          }
+                          // 更新UI
+                          iniFileManagerAdapter.getMData().remove(data);
+                          iniFileManagerAdapter.notifyItemRemoved(position);
+                        }).show();
                     case 2 -> {
                       MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context);
                       View v = LayoutInflater.from(context).inflate(R.layout.inifile_info, null);
@@ -658,7 +657,8 @@ public class IniFileManagerActivity extends AppCompatActivity {
 
   
   private void exportRWmodFile() {
-    String customExportPath = getCustomExportPath();
+
+      String customExportPath = AppSettings.getCustomExportPath();
     if (customExportPath.equals(Downloads_PATH)) {
       // 使用默认Downloads目录，直接用File类操作
       performExportToDownloads();
@@ -677,13 +677,8 @@ public class IniFileManagerActivity extends AppCompatActivity {
       }
     }
   }
-  
-  private String getCustomExportPath() {
-    SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-    return prefs.getString("custom_export_path", Downloads_PATH);
-  }
-  
-  private boolean hasDocumentTreePermission(String path) {
+
+    private boolean hasDocumentTreePermission(String path) {
     try {
       List<UriPermission> permissions = getContentResolver().getPersistedUriPermissions();
       for (UriPermission permission : permissions) {
@@ -704,7 +699,8 @@ public class IniFileManagerActivity extends AppCompatActivity {
   }
   
   private void requestDocumentTreePermission() {
-    String customExportPath = getCustomExportPath();
+
+      String customExportPath = AppSettings.getCustomExportPath();
     Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
     try {
       Uri initialUri = DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", 
@@ -717,7 +713,8 @@ public class IniFileManagerActivity extends AppCompatActivity {
   }
   
   private void performExportWithDocumentApi() {
-    String customExportPath = getCustomExportPath();
+
+      String customExportPath = AppSettings.getCustomExportPath();
     try {
       List<UriPermission> permissions = getContentResolver().getPersistedUriPermissions();
       DocumentFile targetDir = null;
@@ -819,7 +816,8 @@ public class IniFileManagerActivity extends AppCompatActivity {
 
   
   private void performExport() {
-    String customExportPath = getCustomExportPath();
+
+      String customExportPath = AppSettings.getCustomExportPath();
     File export_dir = new File(customExportPath);
     if (!export_dir.exists()) export_dir.mkdirs();
     File doucument = new File(export_dir, clickdir + ".rwmod");
@@ -959,13 +957,6 @@ public class IniFileManagerActivity extends AppCompatActivity {
     Timber.d("Scrolling to position: %d", position);
   }
 
-    private void saveData() {
-    SharedPreferences.Editor editor = sharedpreferences.edit();
-    editor.putInt("curTranInterface_flag", PopupUtils.curTranInterface_flag);
-    editor.apply();
-
-  }
-
   private void openFile(File file) {
     Uri uri = FileProvider.getUriForFile(this, BuildConfig.APPLICATION_ID + ".fileprovider", file);
     Intent intent = new Intent(Intent.ACTION_VIEW);
@@ -985,7 +976,7 @@ public class IniFileManagerActivity extends AppCompatActivity {
           .setPositiveButton(
               R.string.project_act_save_exit,
               (v1, v2) -> {
-                saveData();
+
                 saveToIniFiles();
                 finish();
               })

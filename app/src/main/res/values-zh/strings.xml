@@ -134,7 +134,6 @@
     <string name="setting_act_llm_refresh_models_summary">从API获取可用模型</string>
     <string name="setting_act_llm_models_refreshed">模型列表刷新成功</string>
     <string name="setting_act_llm_custom_model_title">自定义模型Id</string>
-    <string name="setting_act_llm_customize_model_summary">"如果模型列表中不存在特定模型，请自定义模型id\n当前模型ID: %s
-        "
-    </string>
+    <string name="setting_act_llm_customize_model_summary">如果模型列表中不存在特定模型，请自定义模型id\n当前模型ID: %s</string>
+    <string name="setting_fragment_llm_api_host_dialog_message">请输入完整API URL, e.g.,https://api.openai.com/v1</string>
 </resources>

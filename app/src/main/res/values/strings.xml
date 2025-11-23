@@ -90,7 +90,7 @@
     <string name="setting_act_join_group_summary">Report bugs and help improve RWTranlater</string>
     <string name="setting_act_llm_category_title">LLM Settings</string>
     <string name="setting_act_llm_api_host_title">API Host</string>
-    <string name="setting_act_llm_api_host_summary">OpenAI compatible API endpoint (e.g., https://api.openai.com)</string>
+    <string name="setting_act_llm_api_host_summary">OpenAI compatible API endpoint</string>
     <string name="setting_act_llm_api_key_title">API Key</string>
     <string name="setting_act_llm_api_key_summary">Your API key for authentication</string>
     <string name="setting_act_llm_max_tokens_title">Max Tokens Per Request</string>
@@ -136,8 +136,7 @@
     <string name="project_act_config_llm_dialog_model">Model</string>
     <string name="exception_occurred">Exceotion Occurred</string>
     <string name="setting_act_llm_custom_model_title">Customize Model Id</string>
-    <string name="setting_act_llm_customize_model_summary">"Customize model id if the specific model does not exist in
-        the models list \n Current model id: %s "
-    </string>
+    <string name="setting_act_llm_customize_model_summary">Customize model id if the specific model does not exist in the models list \n Current model id: %s</string>
+    <string name="setting_fragment_llm_api_host_dialog_message">Please enter the full API host URL, e.g.,https://api.openai.com/v1</string>
 
 </resources>

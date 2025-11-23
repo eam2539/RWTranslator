@@ -26,7 +26,7 @@ import timber.log.Timber;
 
 public class SettingsFragment extends PreferenceFragmentCompat {
     private static final int REQUEST_CODE_CUSTOM_EXPORT_PATH = 1002;
-    private static Boolean isSuccessfullyRefreshingModels = false;
+    private Boolean isSuccessfullyRefreshingModels = false;
     @Override
     public void onCreatePreferencesFix(Bundle savedInstanceState, String rootKey) {
         setPreferencesFromResource(R.xml.preferences, rootKey);
@@ -84,6 +84,7 @@ public class SettingsFragment extends PreferenceFragmentCompat {
         EditTextPreference customizeModelPref = LLMCategory.findPreference("custom_llm_model_id");
         // 设置API Host改变监听
         if (apiHostPref != null) {
+            apiHostPref.setDialogMessage(getString(R.string.setting_fragment_llm_api_host_dialog_message));
             apiHostPref.setText(AppSettings.getApiHost());
             apiHostPref.setOnPreferenceChangeListener((preference, newValue) -> {
                 AppSettings.setApiHost(newValue.toString());

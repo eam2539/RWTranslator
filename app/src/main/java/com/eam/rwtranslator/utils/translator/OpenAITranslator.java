@@ -303,12 +303,12 @@ public class OpenAITranslator extends BaseLLMTranslator {
 
         OkHttpClient client = new OkHttpClient.Builder()
                 .connectTimeout(60, TimeUnit.SECONDS)
-                .readTimeout(60, TimeUnit.SECONDS)
+                .readTimeout(1800, TimeUnit.SECONDS)
                 .build();
 
         // 确保API host不以斜杠结尾
         String baseUrl = AppSettings.getApiHost().endsWith("/") ? AppSettings.getApiHost().substring(0, AppSettings.getApiHost().length() - 1) : AppSettings.getApiHost();
-        String url = baseUrl + "/v1/chat/completions";
+        String url = baseUrl + "/chat/completions";
 
         String systemPrompt =AppSettings.getLlmStylePrompt()+ "\nTarget language: " + getLanguageName(tl) + MODEL_RULE ;
 
@@ -418,7 +418,7 @@ public class OpenAITranslator extends BaseLLMTranslator {
                 .build();
 
         String baseUrl = AppSettings.getApiHost().endsWith("/") ? AppSettings.getApiHost().substring(0, AppSettings.getApiHost().length() - 1) : AppSettings.getApiHost();
-        String url = baseUrl + "/v1/models";
+        String url = baseUrl + "/models";
 
         Request request = new Request.Builder()
                 .url(url)

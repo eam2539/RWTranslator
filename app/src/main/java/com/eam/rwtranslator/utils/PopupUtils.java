@@ -4,25 +4,14 @@ package com.eam.rwtranslator.utils;
  * @Author EAM霜星
  * @Date 2023/02/25 21:17
  */
-import android.app.AlertDialog;
 import android.content.Context;
-import android.content.DialogInterface;
-import android.content.res.Resources;
-import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.View.OnTouchListener;
 import android.widget.PopupMenu;
 import android.widget.TextView;
-import android.widget.Toast;
-import com.eam.rwtranslator.R;
-import android.view.MotionEvent;
 
 public class PopupUtils {
-    // 当前源语言、翻译接口等全局状态（如无全局需求建议后续重构时移除）
-    public static String curSourLan="en",curTranInterface_str,curSourLan_str;
-    public static int curTranInterface_flag=3;
     /**
      * 显示弹出菜单（通过菜单资源ID）
      * @param context 上下文

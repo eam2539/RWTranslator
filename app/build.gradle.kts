@@ -1,5 +1,3 @@
-import com.android.build.api.dsl.Packaging
-
 plugins {
     id("com.android.application")
 }
@@ -13,8 +11,8 @@ android {
         applicationId = androidConfig["applicationId"].toString()
         minSdk = androidConfig["minSdkVersion"] as Int
         targetSdk = androidConfig["targetSdkVersion"] as Int
-        versionCode = 10400
-        versionName = "1.4.0"
+        versionCode = 10410
+        versionName = "1.4.1"
 
         vectorDrawables {
             useSupportLibrary = true
