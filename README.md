@@ -73,4 +73,4 @@ RWTranslator 是一个专为 RustedWarfare 游戏 mods 设计的翻译工具。�
 
 ## 许可证
 
-本项目采用 MIT 许可证。
+本项目采用 GPL-3.0 许可证。
