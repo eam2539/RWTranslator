@@ -78,6 +78,7 @@ public final class RWIniFileLoader {
         Config config = new Config();
         config.setMultiSection(true);
         config.setEmptyOption(true);
+        config.setEscape(false);
         Wini wini = new Wini();
         wini.setConfig(config);
         return wini;
