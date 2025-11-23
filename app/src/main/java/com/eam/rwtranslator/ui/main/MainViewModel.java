@@ -36,9 +36,9 @@ import java.util.concurrent.ExecutorService;
 public class MainViewModel extends AndroidViewModel {
   // GitHub API URL for releases
   private static final String GITHUB_RELEASES_API_URL = 
-      "https://api.github.com/repos/EAM-25/RWTranslator/releases/latest";
+      "https://api.github.com/repos/eam2539/RWTranslator/releases/latest";
   private static final String GITHUB_RELEASES_URL = 
-      "https://github.com/EAM-25/RWTranslator/releases";
+      "https://github.com/eam2539/RWTranslator/releases";
   
   private final ExecutorService executor = Executors.newSingleThreadExecutor();
   private final Context context;

@@ -1,4 +1,6 @@
-<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto">
+<PreferenceScreen 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
     <PreferenceCategory
         app:key="project"
         app:title="@string/setting_act_project_category_title">
@@ -25,6 +27,46 @@
             app:title="@string/setting_act_reset_export_path_title"
             />
 
+    </PreferenceCategory>
+    <PreferenceCategory
+        app:key="llm_settings"
+        app:title="@string/setting_act_llm_category_title">
+        <EditTextPreference
+            app:key="llm_api_host"
+            app:title="@string/setting_act_llm_api_host_title"
+            app:summary="@string/setting_act_llm_api_host_summary"
+            app:defaultValue="https://api.openai.com"
+            />
+        <EditTextPreference
+            app:key="llm_api_key"
+            app:title="@string/setting_act_llm_api_key_title"
+            app:summary="@string/setting_act_llm_api_key_summary"
+            app:defaultValue=""
+            />
+        <EditTextPreference
+            app:key="llm_max_tokens"
+            app:title="@string/setting_act_llm_max_tokens_title"
+            app:summary="@string/setting_act_llm_max_tokens_summary"
+            app:defaultValue="8000"
+            android:inputType="number"
+            />
+        <Preference
+            app:key="llm_refresh_models"
+            app:title="@string/setting_act_llm_refresh_models_title"
+            app:summary="@string/setting_act_llm_refresh_models_summary"
+            />
+        <ListPreference
+            app:key="llm_model"
+            app:title="@string/setting_act_llm_model_title"
+            app:summary="@string/setting_act_llm_model_summary"
+            android:entries="@array/llm_model_entries"
+            android:entryValues="@array/llm_model_values"
+            />
+        <EditTextPreference
+            app:key="custom_llm_model_id"
+            app:title="@string/setting_act_llm_custom_model_title"
+            app:summary="@string/setting_act_llm_customize_model_summary"
+        />
     </PreferenceCategory>
     <PreferenceCategory
         app:key="development"

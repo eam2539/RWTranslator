@@ -50,19 +50,12 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.core.widget.NestedScrollView
+    <com.yanzhenjie.recyclerview.SwipeRecyclerView
          android:layout_height="match_parent"
          android:layout_width="match_parent"
-         app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior"
-         android:id="@+id/inilist_NestedScrollView">
-
-        <com.yanzhenjie.recyclerview.SwipeRecyclerView
-             android:layout_height="wrap_content"
-             android:layout_width="match_parent"
-             android:padding="10dp"
-             android:id="@+id/inilistview" />
-
-    </androidx.core.widget.NestedScrollView>
+         android:padding="10dp"
+         android:id="@+id/inilistview"
+         app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior" />
 
     <com.google.android.material.bottomappbar.BottomAppBar
          android:layout_height="wrap_content"

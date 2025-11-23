@@ -11,6 +11,8 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.widget.Toast;
+
+import androidx.activity.OnBackPressedDispatcher;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
@@ -25,6 +27,8 @@ import com.eam.rwtranslator.ui.setting.SettingActivity;
 import com.eam.rwtranslator.utils.DialogUtils;
 import com.eam.rwtranslator.utils.PopupUtils;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
+import org.jetbrains.annotations.NotNull;
 
 import timber.log.Timber;
 
@@ -176,7 +180,7 @@ public class MainActivity extends AppCompatActivity {
                         100);
               }
             });
-    viewModel.toastMessage().observe(this, msg -> showMsg(msg));
+    viewModel.toastMessage().observe(this, this::showMsg);
     viewModel.errorMessage().observe(this, throwable -> {
         Timber.e(throwable);
         showError(throwable);
@@ -197,11 +201,26 @@ public class MainActivity extends AppCompatActivity {
                   .setNegativeButton(R.string.negative_button, null)
                   .show();
             });
+     // 处理返回按钮事件
+      OnBackPressedDispatcher dispatcher = getOnBackPressedDispatcher();
+      dispatcher.addCallback(this, new androidx.activity.OnBackPressedCallback(true) {
+          @Override
+          public void handleOnBackPressed() {
+              if (isFabMenuOpen) {
+                  closeFabMenu();
+                  return;
+              }
+              if (System.currentTimeMillis() - firstBackTime > 2000) {
+                  showMsg(res.getString(R.string.main_act_exit_toast));
+                  firstBackTime = System.currentTimeMillis();
+              }else finish();
+          }
+        });
   }
 
   // 存储权限请求回调处理
   @Override
-  public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+  public void onRequestPermissionsResult(int requestCode, String @NotNull [] permissions, int @NotNull [] grantResults) {
     super.onRequestPermissionsResult(requestCode, permissions, grantResults);
     if (requestCode == 102) {
       boolean allGranted = true;
@@ -276,20 +295,6 @@ public class MainActivity extends AppCompatActivity {
         .show();
   }
 
-  @Override
-  public void onBackPressed() {
-    if (isFabMenuOpen) {
-      closeFabMenu();
-      return;
-    }
-    if (System.currentTimeMillis() - firstBackTime > 2000) {
-      showMsg(res.getString(R.string.main_act_exit_toast));
-      firstBackTime = System.currentTimeMillis();
-      return;
-    }
-    super.onBackPressed();
-  }
-  
   private void toggleFabMenu() {
     if (isFabMenuOpen) {
       closeFabMenu();

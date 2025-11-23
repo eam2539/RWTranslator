@@ -30,7 +30,7 @@ public class ConfigTextFragmentAdapter extends RecyclerView.Adapter<ConfigTextFr
   private SectionModel.Pair translationPair;
   private InputMethodManager imm;
   private Context context;
-  private doubleListActCallBack callback;
+  private sectionEditorActCallBack callback;
   private boolean FirstIsRequest = false;
   private EditText[] edittexts;
   private Map<EditText, Integer> edit2index;
@@ -38,7 +38,7 @@ public class ConfigTextFragmentAdapter extends RecyclerView.Adapter<ConfigTextFr
   public ConfigTextFragmentAdapter(
       SectionModel.Pair translationPair,
       Context context,
-      doubleListActCallBack callback) {
+      sectionEditorActCallBack callback) {
     if (translationPair.getLang_pairs() != null)
       edittexts = new EditText[translationPair.getLang_pairs().size() + 1];
     else edittexts = new EditText[1];
@@ -183,7 +183,7 @@ public class ConfigTextFragmentAdapter extends RecyclerView.Adapter<ConfigTextFr
     }
   }
 
-  public interface doubleListActCallBack {
+  public interface sectionEditorActCallBack {
     void setPairEntry(
         TextInputLayout layout, TextInputEditText valueEditText, Integer index, String key);
   }

@@ -13,22 +13,11 @@ android {
         applicationId = androidConfig["applicationId"].toString()
         minSdk = androidConfig["minSdkVersion"] as Int
         targetSdk = androidConfig["targetSdkVersion"] as Int
-        versionCode = 10311
-        versionName = "1.3.11"
+        versionCode = 10400
+        versionName = "1.4.0"
 
         vectorDrawables {
             useSupportLibrary = true
-        }
-    }
-
-    signingConfigs {
-
-        create("key") {
-            storeFile = file("eam2539.jks")
-            storePassword = "114514"
-            keyAlias = "releasekey"
-            keyPassword = "114514"
-
         }
     }
 
@@ -40,7 +29,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("key")
         }
         getByName("release") {
 
@@ -50,7 +38,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("key")
         }
     }
 
@@ -135,7 +122,7 @@ dependencies {
 
     // 数据解析与序列化
     implementation("com.google.code.gson:gson:2.13.1")                // JSON解析
-    implementation("org.ini4j:ini4j:0.5.4")                         // INI文件解析
+    implementation("org.ini4j:ini4j:0.5.4")                           // INI文件解析
 
     // 工具库
     implementation("com.google.guava:guava:33.4.8-android")         // Google工具集合
@@ -152,4 +139,6 @@ dependencies {
 
     // AI服务集成
     implementation("io.github.lambdua:service:0.22.92")
+
+    testImplementation("junit:junit:4.13.2")
 }

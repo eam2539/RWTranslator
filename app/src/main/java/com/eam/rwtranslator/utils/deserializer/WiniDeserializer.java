@@ -9,6 +9,7 @@ import com.google.gson.JsonDeserializationContext;
 import java.util.Map;
 import org.ini4j.Wini;
 import org.ini4j.Profile;
+import com.eam.rwtranslator.utils.ini.RWIniFileLoader;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonDeserializer;
@@ -20,7 +21,7 @@ public class WiniDeserializer implements JsonDeserializer<Wini> {
             throws JsonParseException {
         try {
             JsonObject jsonObject = json.getAsJsonObject();
-            Wini wini = new Wini();
+            Wini wini = RWIniFileLoader.createEmpty();
             
             // 处理配置文件路径
             if (jsonObject.has("configFile")) {
@@ -50,10 +51,10 @@ public class WiniDeserializer implements JsonDeserializer<Wini> {
                 }
             }
             
+            RWIniFileLoader.ensureDocument(wini);
             return wini;
         } catch (Exception e) {
             throw new JsonParseException("Failed to deserialize Wini object", e);
         }
     }
-
-    }
+}

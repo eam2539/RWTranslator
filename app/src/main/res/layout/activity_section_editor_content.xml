@@ -15,10 +15,10 @@
              android:layout_height="?attr/actionBarSize"
              android:layout_width="match_parent"
              android:background="?attr/colorPrimary"
-             app:menu="@menu/doublelist_menu"
+             app:menu="@menu/section_editor_menu"
              app:navigationIcon="@drawable/return_left"
              app:popupTheme="@style/ThemeOverlay"
-             android:id="@+id/doublelist_toolbar" />
+             android:id="@+id/section_editor_toolbar" />
 
     </com.google.android.material.appbar.AppBarLayout>
 

@@ -6,20 +6,21 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewTreeObserver;
-import android.view.inputmethod.InputMethodManager;
 import android.widget.ExpandableListView;
 import android.widget.ImageView;
 import android.widget.Toast;
+
 import androidx.activity.OnBackPressedCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import com.eam.rwtranslator.data.model.DataSet;
-import com.eam.rwtranslator.data.model.SectionModel;
-import com.eam.rwtranslator.data.model.IniFileModel;
+
 import com.eam.rwtranslator.R;
+import com.eam.rwtranslator.data.model.DataSet;
+import com.eam.rwtranslator.data.model.IniFileModel;
+import com.eam.rwtranslator.data.model.SectionModel;
 import com.eam.rwtranslator.ui.fragment.ConfigLLMTranslatorFragment;
 import com.eam.rwtranslator.ui.fragment.ConfigTranslatorFragment;
 import com.eam.rwtranslator.utils.FilesHandler;
@@ -29,18 +30,16 @@ import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 
-import java.util.LinkedList;
-
 import timber.log.Timber;
 
 public class SectionEditorActivity extends AppCompatActivity
-    implements ConfigTextFragmentAdapter.doubleListActCallBack {
-    public static Context mcontext;
-    private SectionEditorAdapter madapter;
-    private ActivityResultLauncher<Intent> extendlauncher;
+        implements ConfigTextFragmentAdapter.sectionEditorActCallBack {
+    public Context mcontext;
+    private SectionEditorAdapter adapter;
+    private ActivityResultLauncher<Intent> launcher;
     private MaterialCardView imgSelectAll, imgInverseSelection, imgTranslate, imgLLMTranslate;
     private ExpandableListView list;
-    private IniFileModel inilistdata;
+    private IniFileModel iniFileModel;
     private boolean isModified = false;
     private MaterialToolbar toolbar;
     private ConfigTextFragmentAdapter tAdapter;
@@ -55,26 +54,25 @@ public class SectionEditorActivity extends AppCompatActivity
 
     private void initView() {
         mcontext = this;
-        inilistdata = DataSet.getIniFileModel(getIntent().getStringExtra("ClickDatadir"));
+        iniFileModel = DataSet.getIniFileModel(getIntent().getStringExtra("ClickDatadir"));
         imgSelectAll = findViewById(R.id.cardview_seclect_all);
         imgInverseSelection = findViewById(R.id.cardview_inverse_selection);
         imgTranslate = findViewById(R.id.cardview_translate);
         imgLLMTranslate = findViewById(R.id.section_act_bottom_appbar_card_ai_translate);
         list = findViewById(R.id.list);
-        toolbar = findViewById(R.id.doublelist_toolbar);
-        toolbar.setTitle(FilesHandler.getBaseName(inilistdata.getRwini().getFile().getName()));
-        ImageView multiselectButton = findViewById(R.id.imageview_multi_select);
-        madapter =
+        toolbar = findViewById(R.id.section_editor_toolbar);
+        toolbar.setTitle(FilesHandler.getBaseName(iniFileModel.getRwini().getFile().getName()));
+        adapter =
                 new SectionEditorAdapter(
                         mcontext,
-                        inilistdata.getData(),
+                        iniFileModel.getData(),
                         findViewById(R.id.cardview_multi_select),
                         toolbar,
                         list
                 );
 
-        toolbar.setSubtitle("0/" + madapter.getFlatCount());
-        list.setAdapter(madapter);
+        toolbar.setSubtitle("0/" + adapter.getFlatCount());
+        list.setAdapter(adapter);
         ExpandAll();
         BottomAppBar bottomAppBar = findViewById(R.id.bottom_app_bar);
         ViewTreeObserver vto = bottomAppBar.getViewTreeObserver();
@@ -100,19 +98,19 @@ public class SectionEditorActivity extends AppCompatActivity
                                 finish();
                             }
                         });
-        extendlauncher =
+        launcher =
                 registerForActivityResult(
                         new ActivityResultContracts.StartActivityForResult(),
                         result -> tAdapter.updateEditText(result));
-        madapter.setOnItemClickListener(
+        adapter.setOnItemClickListener(
                 (parentPosition, childPosition) -> {
                     View dialogview = LayoutInflater.from(mcontext).inflate(R.layout.translater_dialog, null);
                     var item =
-                            (SectionModel.Pair) madapter.getChild(parentPosition, childPosition);
+                            (SectionModel.Pair) adapter.getChild(parentPosition, childPosition);
                     RecyclerView lv = dialogview.findViewById(R.id.translater_rv);
                     tAdapter = new ConfigTextFragmentAdapter(item, mcontext, SectionEditorActivity.this);
                     ConfigTextFragment dialog =
-                            new ConfigTextFragment(mcontext, dialogview, item, tAdapter, madapter);
+                            new ConfigTextFragment(mcontext, dialogview, item, tAdapter, adapter);
                     lv.setLayoutManager(new LinearLayoutManager(this));
                     lv.setAdapter(tAdapter);
                     dialog.show(getSupportFragmentManager(), "tr");
@@ -120,30 +118,30 @@ public class SectionEditorActivity extends AppCompatActivity
 
         imgSelectAll.setOnClickListener(
                 v3 -> {
-                    madapter.selectAll();
+                    adapter.selectAll();
                 });
         imgInverseSelection.setOnClickListener(
                 v4 -> {
-                    madapter.inverseSelection();
+                    adapter.inverseSelection();
                 });
         imgLLMTranslate.setOnClickListener(
                 v5 -> {
-                    ConfigLLMTranslatorFragment dialogFragment = new ConfigLLMTranslatorFragment(mcontext, madapter);
+                    ConfigLLMTranslatorFragment dialogFragment = new ConfigLLMTranslatorFragment(mcontext, adapter);
                     dialogFragment.show(getSupportFragmentManager(), "llm_translate_dialog");
                 });
 
         imgTranslate.setOnClickListener(
                 v -> {
-                    ConfigTranslatorFragment dialogFragment = new ConfigTranslatorFragment(mcontext, madapter);
+                    ConfigTranslatorFragment dialogFragment = new ConfigTranslatorFragment(mcontext, adapter);
                     dialogFragment.show(getSupportFragmentManager(), "translate_dialog");
                 });
 
         toolbar.setOnMenuItemClickListener(
                 menuitem -> {
                     final var id = menuitem.getItemId();
-                    if (id == R.id.doublelist_menuitem_expand_all) {
+                    if (id == R.id.section_editor_menuitem_expand_all) {
                         ExpandAll();
-                    } else if (id == R.id.doublelist_menuitem_collapse_all) {
+                    } else if (id == R.id.section_editor_menuitem_collapse_all) {
                         CollapseAll();
                     }
                     return true;
@@ -164,19 +162,19 @@ public class SectionEditorActivity extends AppCompatActivity
                     i.putExtra("key", key);
                     i.putExtra("index", index);
                     i.putExtra("tran", valueEditText.getText().toString());
-                    extendlauncher.launch(i);
+                    launcher.launch(i);
                 });
     }
 
     private void ExpandAll() {
-        int count = madapter.getGroupCount();
+        int count = adapter.getGroupCount();
         for (int i = 0; i < count; i++) {
             list.expandGroup(i);
         }
     }
 
     private void CollapseAll() {
-        int count = madapter.getGroupCount();
+        int count = adapter.getGroupCount();
         for (int i = 0; i < count; i++) {
             list.collapseGroup(i);
         }
@@ -185,7 +183,7 @@ public class SectionEditorActivity extends AppCompatActivity
     public void returnData() {
         Intent resultIntent = new Intent();
         Timber.d("isModified:%b", isModified);
-        resultIntent.putExtra("returnDir", inilistdata.getRwini().getFile().getPath());
+        resultIntent.putExtra("returnDir", iniFileModel.getRwini().getFile().getPath());
         resultIntent.putExtra("isModified", isModified);
         if (isModified) {
             setResult(RESULT_OK, resultIntent);

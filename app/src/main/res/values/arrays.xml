@@ -10,14 +10,16 @@
         <item>@string/project_act_yandex_translate</item>
 
     </string-array>
-    <string-array name="select_model"
-    >
-        <item>Gemini 2.0 Flush</item>
-        <item>Gemini 2.0 Flush-Lite</item>
+    <string-array name="select_model">
+        <item>OpenAI Compatible</item>
     </string-array>
-    <string-array name="select_model_values"
-    >
-        <item>gemini_2.0_flush</item>
-        <item>gemini_2.0_flush_lite</item>
+    <string-array name="select_model_values">
+        <item>openai</item>
+    </string-array>
+    <string-array name="llm_model_entries">
+        <item>Qwen3 8B</item>
+    </string-array>
+    <string-array name="llm_model_values">
+        <item>qwen3–8b</item>
     </string-array>
 </resources>

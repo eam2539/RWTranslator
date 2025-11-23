@@ -6,4 +6,4 @@ extra["androidConfig"] = mapOf(
     "targetSdkVersion" to 35
 )
 
-extra["javaVersion"] = JavaVersion.VERSION_21
+extra["javaVersion"] = JavaVersion.VERSION_17

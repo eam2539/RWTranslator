@@ -66,7 +66,7 @@
     <string name="project_act_config_translator_dialog_language_hint">Enter language code</string>
     <string name="project_act_config_translator_dialog_enable_llm">LLM Translation</string>
     <string name="project_act_config_llm_translator_dialog_model">LLM Model</string>
-    <string name="project_act_config_llm_translator_dialog_system_prompt">System Prompt</string>
+    <string name="project_act_config_llm_translator_dialog_system_prompt">Style Prompt</string>
     <string name="project_act_tencent_translate">Tencent Translate</string>
     <string name="project_act_baidu_translate">Baidu Translate</string>
     <string name="project_act_sogou_translate">Sogou Translate</string>
@@ -74,21 +74,6 @@
     <string name="project_act_microsoft_translate">Microsoft Translate</string>
     <string name="project_act_deepl_translate">DeepL Translate</string>
         <string name="project_act_yandex_translate">Yandex Translate</string>
-    
-    <!-- Language Display Names -->
-    <string name="project_act_zh_language_name">Chinese</string>
-    <string name="project_act_ru_language_name">Russian</string>
-    <string name="project_act_en_language_name">English</string>
-    <string name="project_act_ja_language_name">Japanese</string>
-    <string name="project_act_de_language_name">German</string>
-    <string name="project_act_es_language_name">Spanish</string>
-    <string name="project_act_fr_language_name">French</string>
-    <string name="project_act_pt_language_name">Portuguese</string>
-    <string name="project_act_it_language_name">Italian</string>
-    <string name="project_act_nl_language_name">Dutch</string>
-    <string name="project_act_tr_language_name">Turkish</string>
-    <string name="project_act_pl_language_name">Polish</string>
-    <string name="project_act_uk_language_name">Ukrainian</string>
 
     <string name="section_act_info_dialog_title">Tips</string>
     <string name="section_act_loading_dialog_message">Processed:\n(%1$d/%2$d)</string>
@@ -103,7 +88,19 @@
     <string name="setting_act_clean_cache_summary">Clear all project caches</string>
     <string name="setting_act_join_group_title">Join group</string>
     <string name="setting_act_join_group_summary">Report bugs and help improve RWTranlater</string>
-    <string name="setting_act_ai_translator_category_title">AI Translation</string>
+    <string name="setting_act_llm_category_title">LLM Settings</string>
+    <string name="setting_act_llm_api_host_title">API Host</string>
+    <string name="setting_act_llm_api_host_summary">OpenAI compatible API endpoint (e.g., https://api.openai.com)</string>
+    <string name="setting_act_llm_api_key_title">API Key</string>
+    <string name="setting_act_llm_api_key_summary">Your API key for authentication</string>
+    <string name="setting_act_llm_max_tokens_title">Max Tokens Per Request</string>
+    <string name="setting_act_llm_max_tokens_summary">Maximum tokens per batch request (default: 8000, max: 100000)</string>
+    <string name="setting_act_llm_model_title">Model</string>
+    <string name="setting_act_llm_model_summary">Select the model to use</string>
+    <string name="setting_act_llm_refresh_models_title">Refresh Model List</string>
+    <string name="setting_act_llm_refresh_models_summary">Fetch available models from API</string>
+    <string name="setting_act_llm_models_refreshed">Model list refreshed successfully</string>
+    <string name="setting_act_llm_refresh_failed">Failed to refresh model list: %s</string>
     <string name="setting_act_export_path_title">Project Export Path</string>
      <string name="setting_act_ai_translator_select_gemini_model_title">Select Model</string>
     <string name="setting_act_api_key_dialog_title">Enter API Key</string>
@@ -111,7 +108,7 @@
     <string name="main_act_storage_permission_granted">Storage Permission Granted</string>
     <string name="project_act_document_permission_granted">Document access permission granted</string>
     <string name="project_act_document_permission_denied">Document access permission denied</string>
-    <string name="setting_act_export_path_default_value">/storage/emulated/0/Download</string>
+    <string name="setting_act_export_path_default_value" translatable="false">/storage/emulated/0/Download</string>
     <string name="setting_act_about_development_title">About development</string>
     <string name="setting_act_about_development_summary">Inspect github repository</string>
     <string name="setting_act_category_develop_title">Development</string>
@@ -138,6 +135,9 @@
     <string name="project_act_config_llm_dialog_system_prompt">System Prompt</string>
     <string name="project_act_config_llm_dialog_model">Model</string>
     <string name="exception_occurred">Exceotion Occurred</string>
-    <string name="project_act_target_language_identifier_is_not_find">{target_language} identifier is not find in the system prompt</string>
+    <string name="setting_act_llm_custom_model_title">Customize Model Id</string>
+    <string name="setting_act_llm_customize_model_summary">"Customize model id if the specific model does not exist in
+        the models list \n Current model id: %s "
+    </string>
 
 </resources>

@@ -22,10 +22,8 @@ import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewTreeObserver;
 import android.view.inputmethod.InputMethodManager;
-import android.widget.ArrayAdapter;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.ListView;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -33,8 +31,8 @@ import androidx.activity.OnBackPressedCallback;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
-import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.eam.rwtranslator.AppConfig;
 import com.eam.rwtranslator.BuildConfig;
@@ -44,7 +42,6 @@ import com.eam.rwtranslator.data.model.IniFileModel;
 import com.eam.rwtranslator.ui.fragment.ConfigTranslatorFragment;
 import com.eam.rwtranslator.ui.fragment.ConfigLLMTranslatorFragment;
 import com.eam.rwtranslator.ui.editor.SectionEditorActivity;
-import com.eam.rwtranslator.ui.setting.AppSettings;
 import com.eam.rwtranslator.ui.setting.SettingActivity;
 import com.eam.rwtranslator.ui.common.UniversalMultiSelectManager;
 import com.eam.rwtranslator.ui.common.MultiSelectDecorator;
@@ -59,8 +56,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.yanzhenjie.recyclerview.OnItemMenuClickListener;
-import com.yanzhenjie.recyclerview.SwipeMenu;
-import com.yanzhenjie.recyclerview.SwipeMenuBridge;
 import com.yanzhenjie.recyclerview.SwipeMenuCreator;
 import com.yanzhenjie.recyclerview.SwipeMenuItem;
 import com.yanzhenjie.recyclerview.SwipeRecyclerView;
@@ -69,32 +64,29 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+
 import timber.log.Timber;
 
 public class IniFileManagerActivity extends AppCompatActivity {
-  public static String Download_PATH;
-  private static final int REQUEST_CODE_DOUBLELIST_ACT = 1;
+  public static String Downloads_PATH;
+  private static final int REQUEST_CODE_SECTION_EDITOR_ACT = 1;
+  // 用于保存和恢复上次查看位置的常量
+  private static final String PREF_LAST_VIEWED_POSITION = "last_viewed_position";
+  private static final String PREF_LAST_VIEWED_FILE = "last_viewed_file";
+  private static final int REQUEST_CODE_DOCUMENT_TREE = 1001;
   private MaterialCardView ImgInverseSelection,
           ImgSelectAll,
       ImgMultiSelect,
-      ImgTranslate,
+      ImgTranslate, 
       ImgLLMTranslate;
   private HashSet<String> modifiedList;
   Context context = this;
-  int ClickItem;
+  int ClickedItem;
   SharedPreferences sharedpreferences;
-  LinkedList<String> allTran;
-  List<IniFileModel> inilistdatalist;
-  SwipeRecyclerView list;
-  IniFileManagerAdapter adapter;
+  List<IniFileModel> iniFileModels;
+  SwipeRecyclerView swipeRecyclerView;
+  IniFileManagerAdapter iniFileManagerAdapter;
   String clickdir;
   DialogUtils du;
   TranslationConfigManager project;
@@ -102,14 +94,13 @@ public class IniFileManagerActivity extends AppCompatActivity {
   MaterialToolbar projectManagerToolbar;
   RelativeLayout filterLayout;
   private UniversalMultiSelectManager multiSelectManager;
-  private MultiSelectDecorator multiSelectDecorator;
 
   @SuppressLint("NotifyDataSetChanged")
   @Override
   protected void onActivityResult(int requestCode, int resultCode, Intent data) {
     super.onActivityResult(requestCode, resultCode, data);
     switch (requestCode) {
-      case REQUEST_CODE_DOUBLELIST_ACT: {
+      case REQUEST_CODE_SECTION_EDITOR_ACT: {
         if (data != null) {
           String returnDir = data.getStringExtra("returnDir");
           boolean isModified = data.getBooleanExtra("isModified", false);
@@ -119,7 +110,7 @@ public class IniFileManagerActivity extends AppCompatActivity {
             modifiedList.add(returnDir);
             iniFileModel.setModified(true);
           }
-          adapter.notifyDataSetChanged();
+          iniFileManagerAdapter.notifyDataSetChanged();
         }
         break;
       }
@@ -176,6 +167,12 @@ public class IniFileManagerActivity extends AppCompatActivity {
             showErrorFilesDialog();
         }
     }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+    }
+    
     private void showErrorFilesDialog() {
         new Handler(context.getMainLooper()).post(() -> {
             // 检查是否有错误需要显示
@@ -237,7 +234,7 @@ public class IniFileManagerActivity extends AppCompatActivity {
     }
     private void initView() {
     projectManagerToolbar = findViewById(R.id.inilist_toolbar);
-    list = findViewById(R.id.inilistview);
+    swipeRecyclerView = findViewById(R.id.inilistview);
     ImgInverseSelection = findViewById(R.id.inilist_cardview_inverse_selection);
     ImgSelectAll = findViewById(R.id.inilist_cardview_select_all);
     ImgMultiSelect = findViewById(R.id.inilist_cardview_multi_select);
@@ -246,29 +243,34 @@ public class IniFileManagerActivity extends AppCompatActivity {
   }
 
   private void initData() {
-    Download_PATH =context.getResources().getString(R.string.setting_act_export_path_default_value) ;
+    Downloads_PATH =context.getResources().getString(R.string.setting_act_export_path_default_value) ;
     du = new DialogUtils(context);
     clickdir = getIntent().getStringExtra("clickdir");
-    allTran = new LinkedList<>();
     modifiedList = new HashSet<>();
-    inilistdatalist = DataSet.getIniListDatas();
+    iniFileModels = DataSet.getIniListDatas();
     filterLayout = findViewById(R.id.filter_relativelayout);
     project = DataSet.getCurrentProject();
     sharedpreferences = getSharedPreferences(clickdir, Context.MODE_PRIVATE);
-    adapter = new IniFileManagerAdapter(context, inilistdatalist);
-    list.setLayoutManager(new LinearLayoutManager(this));
+    iniFileManagerAdapter = new IniFileManagerAdapter(context, iniFileModels);
+    swipeRecyclerView.setLayoutManager(new LinearLayoutManager(this));
     
-    // RecyclerView 性能优化配置
-    list.setHasFixedSize(true); // 如果RecyclerView大小固定，提升性能
-    list.setItemViewCacheSize(10); // 增加视图缓存大小
-    list.setDrawingCacheEnabled(true); // 启用绘制缓存
-    list.setDrawingCacheQuality(View.DRAWING_CACHE_QUALITY_HIGH);
+    // RecyclerView 性能优化配置（关键优化）
+    swipeRecyclerView.setHasFixedSize(true); // 如果RecyclerView大小固定，提升性能
+    swipeRecyclerView.setItemViewCacheSize(20); // 增加视图缓存大小
+    
+    // 设置共享的 RecycledViewPool（多选模式下复用 ViewHolder）
+    RecyclerView.RecycledViewPool viewPool = new RecyclerView.RecycledViewPool();
+    viewPool.setMaxRecycledViews(0, 30); // 为 ViewType 0 设置最大复用数
+    swipeRecyclerView.setRecycledViewPool(viewPool);
+    
+    // 禁用动画以提升性能（在多选模式下特别有效）
+    swipeRecyclerView.setItemAnimator(null);
     
     // 初始化多选功能
-    multiSelectDecorator = new MultiSelectDecorator(this);
+      MultiSelectDecorator multiSelectDecorator = new MultiSelectDecorator(this);
     
     // 创建适配器包装器
-    RecyclerViewMultiSelectAdapter adapterWrapper = new RecyclerViewMultiSelectAdapter(adapter);
+    RecyclerViewMultiSelectAdapter adapterWrapper = new RecyclerViewMultiSelectAdapter(iniFileManagerAdapter);
     
     // 初始化多选管理器
     multiSelectManager = new UniversalMultiSelectManager(adapterWrapper, multiSelectDecorator, projectManagerToolbar, ImgMultiSelect,
@@ -285,17 +287,14 @@ public class IniFileManagerActivity extends AppCompatActivity {
         });
     
     // 设置选中状态变化监听器
-    multiSelectManager.setOnSelectionChangedListener(new UniversalMultiSelectManager.OnSelectionChangedListener() {
-      @Override
-      public void onSelectionChanged(int selectedCount, boolean isItemSelected) {
-        // 选中项数量变化时的回调
-      }
+    multiSelectManager.setOnSelectionChangedListener((selectedCount, isItemSelected) -> {
+      // 选中项数量变化时的回调
     });
     
-    adapter.setMultiSelectManager(multiSelectManager);
+    iniFileManagerAdapter.setMultiSelectManager(multiSelectManager);
     
     // 设置翻译完成监听器
-    adapter.setOnTranslationCompleteListener(new IniFileManagerAdapter.OnTranslationCompleteListener() {
+    iniFileManagerAdapter.setOnTranslationCompleteListener(new IniFileManagerAdapter.OnTranslationCompleteListener() {
       @SuppressLint("NotifyDataSetChanged")
       @Override
       public void onTranslationComplete(List<IniFileModel> translatedFiles) {
@@ -305,7 +304,7 @@ public class IniFileManagerActivity extends AppCompatActivity {
           modifiedList.add(file.getRwini().getFile().getPath());
         }
         // 刷新适配器以显示标记状态
-        adapter.notifyDataSetChanged();
+        iniFileManagerAdapter.notifyDataSetChanged();
         
         if (!IniFileManagerAdapter.translationErrors.isEmpty()) {
           // 显示错误对话框
@@ -318,24 +317,24 @@ public class IniFileManagerActivity extends AppCompatActivity {
     });
     
     // 设置文件标记监听器
-    adapter.setOnFileMarkListener(new IniFileManagerAdapter.OnFileMarkListener() {
-      @Override
-      public void onFileMark(IniFileModel file, boolean isMarked) {
-        if (isMarked) {
-          modifiedList.add(file.getRwini().getFile().getPath());
-        } else {
-          modifiedList.remove(file.getRwini().getFile().getPath());
-        }
+    iniFileManagerAdapter.setOnFileMarkListener((file, isMarked) -> {
+      if (isMarked) {
+        modifiedList.add(file.getRwini().getFile().getPath());
+      } else {
+        modifiedList.remove(file.getRwini().getFile().getPath());
       }
     });
     
-    list.addItemDecoration(multiSelectDecorator);
+    swipeRecyclerView.addItemDecoration(multiSelectDecorator);
     
     setSwipeMenu();
     setSwipeMenuListener();
-    list.setAdapter(adapter);
+    swipeRecyclerView.setAdapter(iniFileManagerAdapter);
     projectManagerToolbar.setTitle(clickdir);
-    projectManagerToolbar.setSubtitle("0/" + inilistdatalist.size());
+    projectManagerToolbar.setSubtitle("0/" + iniFileModels.size());
+    
+    // 数据加载完成后，首次恢复上次查看位置
+    swipeRecyclerView.post(this::restoreLastViewedPosition);
   }
 
   private void setListeners() {
@@ -361,18 +360,20 @@ public class IniFileManagerActivity extends AppCompatActivity {
           public void onGlobalLayout() {
             bottomAppBar.getViewTreeObserver().removeOnGlobalLayoutListener(this);
             int bottomAppBarHeight = bottomAppBar.getHeight();
-            NestedScrollView nsv = findViewById(R.id.inilist_NestedScrollView);
-            nsv.setPadding(0, 0, 0, bottomAppBarHeight);
+            swipeRecyclerView.setPadding(swipeRecyclerView.getPaddingLeft(), swipeRecyclerView.getPaddingTop(), swipeRecyclerView.getPaddingRight(), bottomAppBarHeight);
           }
         });
-    adapter.setOnItemClickListener(
+    iniFileManagerAdapter.setOnItemClickListener(
         p1 -> {
-          inilistdatalist.get(p1).setViewed(true);
-          ClickItem = p1;
+          iniFileModels.get(p1).setViewed(true);
+          ClickedItem = p1;
+          // 立即保存点击的位置和文件名
+          IniFileModel clickedFile = iniFileManagerAdapter.getItem(p1);
+          saveLastViewedPosition(p1, clickedFile.getIniname());
           Intent intent =
               new Intent(IniFileManagerActivity.this, SectionEditorActivity.class);
-          intent.putExtra("ClickDatadir", adapter.getItem(p1).getRwini().getFile().getPath());
-          startActivityForResult(intent, REQUEST_CODE_DOUBLELIST_ACT);
+          intent.putExtra("ClickDatadir", clickedFile.getRwini().getFile().getPath());
+          startActivityForResult(intent, REQUEST_CODE_SECTION_EDITOR_ACT);
         });
     projectManagerToolbar.setNavigationOnClickListener(v -> ensureExit());
     projectManagerToolbar.setOnMenuItemClickListener(
@@ -383,7 +384,7 @@ public class IniFileManagerActivity extends AppCompatActivity {
           } else if (id == R.id.filter) {
             showFilterView();
           } else if (id == R.id.export) {
-            exportRwmodFile();
+            exportRWmodFile();
           } else if (id == R.id.saveAll_item) {
             saveToIniFiles();
           } else if (id == R.id.setting) {
@@ -404,12 +405,12 @@ public class IniFileManagerActivity extends AppCompatActivity {
     ImgTranslate.setOnClickListener(
         v5 -> {
           
-          ConfigTranslatorFragment dialogFragment = new ConfigTranslatorFragment(context, adapter);
+          ConfigTranslatorFragment dialogFragment = new ConfigTranslatorFragment(context, iniFileManagerAdapter);
               dialogFragment.show(getSupportFragmentManager(), "translate_dialog");
         });
     ImgLLMTranslate.setOnClickListener(
         v5 -> {
-          ConfigLLMTranslatorFragment dialogFragment = new ConfigLLMTranslatorFragment(context, adapter);
+          ConfigLLMTranslatorFragment dialogFragment = new ConfigLLMTranslatorFragment(context, iniFileManagerAdapter);
           dialogFragment.show(getSupportFragmentManager(), "llm_translate_dialog");
         });
   }
@@ -417,143 +418,135 @@ public class IniFileManagerActivity extends AppCompatActivity {
   private void setSwipeMenu() {
     int[] RmenuImgId = {R.drawable.restore, R.drawable.delete, R.drawable.information};
     SwipeMenuCreator mSwipeMenuCreator =
-        new SwipeMenuCreator() {
-          @Override
-          public void onCreateMenu(SwipeMenu leftMenu, SwipeMenu rightMenu, int position) {
-            for (int id : RmenuImgId) {
-              SwipeMenuItem menuItem = new SwipeMenuItem(context);
-              menuItem.setWidth(AppConfig.dp2px(40));
-              menuItem.setImage(id);
-              rightMenu.addMenuItem(menuItem);
-            }
-          }
-        };
-    list.setSwipeMenuCreator(mSwipeMenuCreator);
+            (leftMenu, rightMenu, position) -> {
+              for (int id : RmenuImgId) {
+                SwipeMenuItem menuItem = new SwipeMenuItem(context);
+                menuItem.setWidth(AppConfig.dp2px(40));
+                menuItem.setImage(id);
+                rightMenu.addMenuItem(menuItem);
+              }
+            };
+    swipeRecyclerView.setSwipeMenuCreator(mSwipeMenuCreator);
   }
 
   private void setSwipeMenuListener() {
-    OnItemMenuClickListener mItemMenuClickListener =
-        new OnItemMenuClickListener() {
-          // @param position:SwipeMenuBridge在RecyclerView的索引
-          @Override
-          public void onItemClick(SwipeMenuBridge menuBridge, int position) {
-            // 任何操作必须先关闭菜单，否则可能出现Item菜单打开状态错乱。
-            menuBridge.closeMenu();
-            int dir = menuBridge.getDirection(); // -1代表右菜单 1代表左菜单
-            int menuPosition = menuBridge.getPosition();
-            IniFileModel data = adapter.getItem(position);
-            File file = data.getRwini().getFile();
-            if (dir == -1) {
-              // 菜单在Item中的Position：
-              switch (menuPosition) {
-                case 0 -> {
-                  InputMethodManager imm =
-                      (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-                   var layout= LayoutInflater.from(context).inflate(R.layout.edittext,null);        
-                  TextInputLayout textinputlayout = layout.findViewById(R.id.edittext_textinputlayout);
-                  TextInputEditText ed =layout.findViewById(R.id.edittext_textinput);
-                  ed.addTextChangedListener(
-                      new TextWatcher() {
-                        @Override
-                        public void beforeTextChanged(
-                            CharSequence s, int start, int count, int after) {}
+      // @param position:SwipeMenuBridge在RecyclerView的索引
+      OnItemMenuClickListener mItemMenuClickListener =
+              (menuBridge, position) -> {
+                // 任何操作必须先关闭菜单，否则可能出现Item菜单打开状态错乱。
+                menuBridge.closeMenu();
+                int dir = menuBridge.getDirection(); // -1代表右菜单 1代表左菜单
+                int menuPosition = menuBridge.getPosition();
+                IniFileModel data = iniFileManagerAdapter.getItem(position);
+                File file = data.getRwini().getFile();
+                if (dir == -1) {
+                  // 菜单在Item中的Position：
+                  switch (menuPosition) {
+                    case 0 -> {
+                      InputMethodManager imm =
+                          (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+                       var layout= LayoutInflater.from(context).inflate(R.layout.edittext,null);
+                      TextInputLayout textinputlayout = layout.findViewById(R.id.edittext_textinputlayout);
+                      TextInputEditText ed =layout.findViewById(R.id.edittext_textinput);
+                      ed.addTextChangedListener(
+                          new TextWatcher() {
+                            @Override
+                            public void beforeTextChanged(
+                                CharSequence s, int start, int count, int after) {}
 
-                        @Override
-                        public void onTextChanged(
-                            CharSequence s, int start, int before, int count) {}
+                            @Override
+                            public void onTextChanged(
+                                CharSequence s, int start, int before, int count) {}
 
-                        @Override
-                        public void afterTextChanged(Editable s) {
-                          if (s.toString().isEmpty()) {
-                            textinputlayout.setError(getString(R.string.project_act_input_empty_error));
-                          } else {
-                            textinputlayout.setError(null);
-                          }
-                        }
-                      });
-                  ed.post(
-                      () -> {
-                        ed.requestFocus();
-                        ed.setSelection(0, file.getName().lastIndexOf('.'));
-                        imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
-                      });
-                 ed.setText(file.getName());           
-                 var builder=new MaterialAlertDialogBuilder(context);
-                  builder.setTitle(R.string.project_act_rename_title);
-                  builder.setView(layout);          
-                  builder.setPositiveButton(R.string.positive_button,(dialog, which) -> {
-                        dialog.dismiss();
-                        imm.hideSoftInputFromWindow(ed.getWindowToken(), 0);
-                        String newName = ed.getText().toString();
-                        File newfile = new File(file.getParentFile(), newName);
-                        file.renameTo(newfile);
-                        // 更新缓存文件
-                        try {
-                          data.getRwini().setFile(newfile);
-                          DataSet.getCurrentProject().serialize();
-                        } catch (Exception err) {
-                          Timber.e(err);
-                          err.printStackTrace();
-                        }
-                        // 更新UI
-                        data.setIniname(newName);
-                        adapter.notifyItemChanged(position);
-                      });          
-                  builder.create().show();                               
+                            @Override
+                            public void afterTextChanged(Editable s) {
+                              if (s.toString().isEmpty()) {
+                                textinputlayout.setError(getString(R.string.project_act_input_empty_error));
+                              } else {
+                                textinputlayout.setError(null);
+                              }
+                            }
+                          });
+                      ed.post(
+                          () -> {
+                            ed.requestFocus();
+                            ed.setSelection(0, file.getName().lastIndexOf('.'));
+                            imm.toggleSoftInput(InputMethodManager.SHOW_FORCED, 0);
+                          });
+                     ed.setText(file.getName());
+                     var builder=new MaterialAlertDialogBuilder(context);
+                      builder.setTitle(R.string.project_act_rename_title);
+                      builder.setView(layout);
+                      builder.setPositiveButton(R.string.positive_button,(dialog, which) -> {
+                            dialog.dismiss();
+                            imm.hideSoftInputFromWindow(ed.getWindowToken(), 0);
+                            String newName = ed.getText().toString();
+                            File newfile = new File(file.getParentFile(), newName);
+                            file.renameTo(newfile);
+                            // 更新缓存文件
+                            try {
+                              data.getRwini().setFile(newfile);
+                              DataSet.getCurrentProject().serialize();
+                            } catch (Exception err) {
+                              Timber.e(err);
+                            }
+                            // 更新UI
+                            data.setIniname(newName);
+                            iniFileManagerAdapter.notifyItemChanged(position);
+                          });
+                      builder.create().show();
+                    }
+                    case 1 -> {
+                      du.createSimpleDialog(
+                          getString(R.string.project_act_delete_title),
+                          getString(R.string.project_act_delete_message),
+                          (dialog, which) -> {
+                            dialog.dismiss();
+                            file.delete();
+                            showMsg(getString(R.string.project_act_deleted));
+                            // 更新缓存文件
+                            try {
+                              DataSet.getCurrentProject().getTranslationIniFiles().remove(data.getRwini());
+                              DataSet.getCurrentProject().serialize();
+                            } catch (Exception err) {
+                              Timber.e(err);
+                            }
+                            // 更新UI
+                            iniFileManagerAdapter.getMData().remove(data);
+                            iniFileManagerAdapter.notifyItemRemoved(position);
+                          }).show();
+                    }
+                    case 2 -> {
+                      MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context);
+                      View v = LayoutInflater.from(context).inflate(R.layout.inifile_info, null);
+                      TextView tv1 = v.findViewById(R.id.tv_dir),
+                          tv2 = v.findViewById(R.id.tv_size),
+                          tv3 = v.findViewById(R.id.tv_time);
+                      tv1.setText(file.getPath());
+                      tv1.setOnClickListener(
+                          v5 -> {
+                            ClipboardManager clipboard =
+                                (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                            ClipData clip = ClipData.newPlainText("label", tv1.getText());
+                            clipboard.setPrimaryClip(clip);
+                            showMsg(getString(R.string.project_act_copied_clipboard));
+                          });
+                      tv2.setText(FilesHandler.getFileSizeString(file));
+                      long lastModified = file.lastModified();
+                      Date date = new Date(lastModified);
+                      SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+                      String formattedDate = sdf.format(date);
+                      tv3.setText(formattedDate);
+                      builder.setTitle(R.string.project_act_file_info);
+                      builder.setView(v);
+                      builder.setPositiveButton(R.string.positive_button, null);
+                      builder.create();
+                      builder.show();
+                    }
+                  }
                 }
-                case 1 -> {
-                  du.createSimpleDialog(
-                      getString(R.string.project_act_delete_title),
-                      getString(R.string.project_act_delete_message),
-                      (dialog, which) -> {
-                        dialog.dismiss();
-                        file.delete();
-                        showMsg(getString(R.string.project_act_deleted));
-                        // 更新缓存文件
-                        try {
-                          DataSet.getCurrentProject().getTranslationIniFiles().remove(data.getRwini());
-                          DataSet.getCurrentProject().serialize();
-                        } catch (Exception err) {
-                          Timber.e(err);
-                          err.printStackTrace();
-                        }
-                        // 更新UI
-                        adapter.getMData().remove(data);
-                        adapter.notifyItemRemoved(position);
-                      }).show();
-                }
-                case 2 -> {
-                  MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(context);
-                  View v = LayoutInflater.from(context).inflate(R.layout.inifile_info, null);
-                  TextView tv1 = v.findViewById(R.id.tv_dir),
-                      tv2 = v.findViewById(R.id.tv_size),
-                      tv3 = v.findViewById(R.id.tv_time);
-                  tv1.setText(file.getPath());
-                  tv1.setOnClickListener(
-                      v5 -> {
-                        ClipboardManager clipboard =
-                            (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-                        ClipData clip = ClipData.newPlainText("label", tv1.getText());
-                        clipboard.setPrimaryClip(clip);
-                        showMsg(getString(R.string.project_act_copied_clipboard));
-                      });
-                  tv2.setText(FilesHandler.getFileSizeString(file));
-                  long lastModified = file.lastModified();
-                  Date date = new Date(lastModified);
-                  SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-                  String formattedDate = sdf.format(date);
-                  tv3.setText(formattedDate);
-                  builder.setTitle(R.string.project_act_file_info);
-                  builder.setView(v);
-                  builder.setPositiveButton(R.string.positive_button, null);
-                  builder.create();
-                  builder.show();
-                }
-              }
-            }
-          }
-        };
-    list.setOnItemMenuClickListener(mItemMenuClickListener);
+              };
+    swipeRecyclerView.setOnItemMenuClickListener(mItemMenuClickListener);
   }
 
   private void showFilterView() {
@@ -570,7 +563,7 @@ public class IniFileManagerActivity extends AppCompatActivity {
           item2.setShowAsAction(MenuItem.SHOW_AS_ACTION_IF_ROOM);
           filterLayout.setVisibility(View.GONE);
           filter_edit.setText("");
-          adapter.filterIniFileModel("");
+          iniFileManagerAdapter.filterIniFileModel("");
           imm.hideSoftInputFromWindow(filter_edit.getWindowToken(), 0);
         });
     filterLayout.setVisibility(View.VISIBLE);
@@ -588,7 +581,7 @@ public class IniFileManagerActivity extends AppCompatActivity {
 
           @Override
           public void onTextChanged(CharSequence s, int start, int before, int count) {
-            adapter.filterIniFileModel(s.toString());
+            iniFileManagerAdapter.filterIniFileModel(s.toString());
           }
 
           @Override
@@ -596,44 +589,7 @@ public class IniFileManagerActivity extends AppCompatActivity {
         });
   }
 
-  private void showEmbeddingTranDialog() {
-    View v = LayoutInflater.from(context).inflate(R.layout.embedded_tran_dialogview, null);
-    ListView list = v.findViewById(R.id.embedded_tran_listview);
-    list.setAdapter(
-        new ArrayAdapter<>(
-            context,
-            android.R.layout.simple_list_item_1,
-            Objects.requireNonNull(
-                AppConfig.externalProjectDir.list((dir, name) -> !name.equals(clickdir)))));
-    list.setOnItemClickListener(
-        (parent, v3, postion, v5) -> {
-          new Thread(
-                  () -> {
-                    try {
-                      FilesHandler.EmbeddingTran(
-                          parent.getItemAtPosition(postion).toString(),
-                          AppSettings.getReplace_Lang());
-                      IniFileManagerActivity.this.runOnUiThread(() -> showMsg("Operation successful!"));
-                    } catch (Exception err) {
-                      err.printStackTrace();
-                      IniFileManagerActivity.this.runOnUiThread(
-                          () -> showMsg(getString(R.string.project_act_operation_failed, err.toString())));
-                    } finally {
-                      IniFileManagerActivity.this.runOnUiThread(du::dismissLoadingDialog);
-                    }
-                  })
-              .start();
-          du.createLoadingDialog().show();
-        });
-    new MaterialAlertDialogBuilder(context)
-        .setTitle(R.string.project_act_old_module_dialog_title)
-        .setView(v)
-        .setNegativeButton(R.string.negative_button, null)
-        .create()
-        .show();
-  }
-
-  public void saveToIniFiles() {
+    public void saveToIniFiles() {
     new Thread(
             () -> {
               boolean[] allSuccess = {true};
@@ -642,30 +598,34 @@ public class IniFileManagerActivity extends AppCompatActivity {
                       i -> {
                         Map<String, Map<String, String>> map = new HashMap<>();
                         IniFileModel key = DataSet.getIniFileModel(i);
-                        key.getData()
-                            .forEach(
-                                doubleListGroup -> {
-                                  String sectionName = doubleListGroup.getName();
-                                  doubleListGroup
-                                      .getItems()
-                                      .forEach(
-                                          item -> {
-                                            var submap =
-                                                map.computeIfAbsent(
-                                                    sectionName, k -> new HashMap<>());
-                                            submap.putIfAbsent(
-                                                item.getKey().getKeyName(), item.getOri_val());
-                                            for (var entry : item.getLang_pairs().entrySet()) {
-                                              submap.putIfAbsent(
-                                                  item.getKey().getKeyName() + "_" + entry.getKey(),
-                                                  entry.getValue());
-                                            }
-                                          });
-                                });
-                        if (!project.setPairs(i, map)) {
+                          if (key != null) {
+                              key.getData()
+                                  .forEach(
+                                      sectionModel -> {
+                                        String sectionName = sectionModel.name();
+                                        sectionModel
+                                            .items()
+                                            .forEach(
+                                                item -> {
+                                                  var submap =
+                                                      map.computeIfAbsent(
+                                                          sectionName, k -> new HashMap<>());
+                                                  submap.putIfAbsent(
+                                                      item.getKey().getKeyName(), item.getOri_val());
+                                                  for (var entry : item.getLang_pairs().entrySet()) {
+                                                    submap.putIfAbsent(
+                                                        item.getKey().getKeyName() + "_" + entry.getKey(),
+                                                        entry.getValue());
+                                                  }
+                                                });
+                                      });
+                          }
+                          if (!project.setPairs(i, map)) {
                             allSuccess[0] = false;
                         }
-                          key.setModified(false);
+                          if (key != null) {
+                              key.setModified(false);
+                          }
                       });
               handler.post(
                   () -> {
@@ -675,14 +635,14 @@ public class IniFileManagerActivity extends AppCompatActivity {
                       showMsg(getString(R.string.project_act_operation_failed));
                     }
                     modifiedList.clear();
-                    adapter.notifyDataSetChanged();
+                    iniFileManagerAdapter.notifyDataSetChanged();
                     du.dismissLoadingDialog();
                   });
 
               try {
                 project.serialize();
               } catch (Exception err) {
-                err.printStackTrace();
+                Timber.e(err);
                  handler.post(()-> {
                      var message = err.getMessage();
                      if(message!=null) {
@@ -695,11 +655,11 @@ public class IniFileManagerActivity extends AppCompatActivity {
         .start();
   }
 
-  private static final int REQUEST_CODE_DOCUMENT_TREE = 1001;
+
   
-  private void exportRwmodFile() {
+  private void exportRWmodFile() {
     String customExportPath = getCustomExportPath();
-    if (customExportPath.equals(Download_PATH)) {
+    if (customExportPath.equals(Downloads_PATH)) {
       // 使用默认Downloads目录，直接用File类操作
       performExportToDownloads();
     } else {
@@ -720,7 +680,7 @@ public class IniFileManagerActivity extends AppCompatActivity {
   
   private String getCustomExportPath() {
     SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-    return prefs.getString("custom_export_path", Download_PATH);
+    return prefs.getString("custom_export_path", Downloads_PATH);
   }
   
   private boolean hasDocumentTreePermission(String path) {
@@ -799,7 +759,6 @@ public class IniFileManagerActivity extends AppCompatActivity {
           OutputStream outputStream = getContentResolver().openOutputStream(newFile.getUri());
           if (outputStream != null) {
             FilesHandler.compressFolder(
-                context,
                 AppConfig.externalProjectDir + "/" + clickdir,
                 outputStream);
             outputStream.close();
@@ -814,7 +773,6 @@ public class IniFileManagerActivity extends AppCompatActivity {
               });
            }
         } catch (IOException e) {
-          e.printStackTrace();
           Timber.e(e);
           handler.post(() -> {
             showMsg(getString(R.string.project_act_export_failed, e.getMessage()));
@@ -824,14 +782,13 @@ public class IniFileManagerActivity extends AppCompatActivity {
       }).start();
       
     } catch (Exception e) {
-      e.printStackTrace();
       Timber.e(e);
       showMsg(getString(R.string.project_act_export_failed, e.getMessage()));
     }
   }
   
   private void performExportToDownloads() {
-    File downloads_dir = new File(Download_PATH);
+    File downloads_dir = new File(Downloads_PATH);
     if (!downloads_dir.exists()) downloads_dir.mkdirs();
     File doucument = new File(downloads_dir, clickdir + ".rwmod");
     du.createLoadingDialog(getString(R.string.project_act_exporting)).show();
@@ -840,16 +797,14 @@ public class IniFileManagerActivity extends AppCompatActivity {
             () -> {
               try {
                 FilesHandler.compressFolder(
-                    context,
                     AppConfig.externalProjectDir + "/" + clickdir,
                     new FileOutputStream(doucument));
                 handler.post(
                     () -> {
-                      showMsg(getString(R.string.project_act_export_success, Download_PATH));
+                      showMsg(getString(R.string.project_act_export_success, Downloads_PATH));
                       du.dismissLoadingDialog();
                     });
               } catch (IOException e) {
-                e.printStackTrace();
                 Timber.e(e);
                 handler.post(
                     () -> {
@@ -874,7 +829,6 @@ public class IniFileManagerActivity extends AppCompatActivity {
             () -> {
               try {
                 FilesHandler.compressFolder(
-                    context,
                     AppConfig.externalProjectDir + "/" + clickdir,
                     new FileOutputStream(doucument));
                 handler.post(
@@ -883,7 +837,6 @@ public class IniFileManagerActivity extends AppCompatActivity {
                       du.dismissLoadingDialog();
                     });
               } catch (IOException e) {
-                e.printStackTrace();
                 Timber.e(e);
                 handler.post(
                     () -> {
@@ -905,11 +858,111 @@ public class IniFileManagerActivity extends AppCompatActivity {
 
     Toast.makeText(getApplication(), s, Toast.LENGTH_SHORT).show();
   }
+  
+  /**
+   * 保存上次查看的INI文件位置和名称
+   * @param position 列表位置
+   * @param fileName 文件名
+   */
+  private void saveLastViewedPosition(int position, String fileName) {
+    SharedPreferences.Editor editor = sharedpreferences.edit();
+    editor.putInt(PREF_LAST_VIEWED_POSITION, position);
+    editor.putString(PREF_LAST_VIEWED_FILE, fileName);
+    editor.apply();
+    Timber.d("Saved last viewed position: %d, file: %s", position, fileName);
+  }
+  /**
+   * 恢复上次查看的位置
+   * 会先尝试根据文件名查找，如果找不到则使用保存的位置索引
+   */
+  private void restoreLastViewedPosition() {
+    if (swipeRecyclerView == null) return;
+    int savedPosition = sharedpreferences.getInt(PREF_LAST_VIEWED_POSITION, -1);
+    String savedFileName = sharedpreferences.getString(PREF_LAST_VIEWED_FILE, null);
+    
+    if (savedPosition == -1 && savedFileName == null) {
+      // 没有保存的位置，不需要恢复
+      Timber.d("No saved position to restore");
+      return;
+    }
+    
+    Timber.d("Attempting to restore - savedPosition: %d, savedFileName: %s", savedPosition, savedFileName);
+    
+    // 延迟执行以确保列表已经加载完成
+    swipeRecyclerView.postDelayed(() -> {
+      if (iniFileManagerAdapter == null || iniFileManagerAdapter.getItemCount() == 0) {
+        swipeRecyclerView.postDelayed(this::restoreLastViewedPosition, 100);
+        return;
+      }
+      
+      int targetPosition = -1;
+      
+      // 优先根据文件名查找（因为列表可能被过滤或排序）
+      if (savedFileName != null) {
+        List<IniFileModel> currentList = iniFileManagerAdapter.getCurrentList();
+        for (int i = 0; i < currentList.size(); i++) {
+          if (currentList.get(i).getIniname().equals(savedFileName)) {
+            targetPosition = i;
+            Timber.d("Found file by name at position: %d", i);
+            break;
+          }
+        }
+      }
+      
+      // 如果没有通过文件名找到，使用保存的位置
+      if (targetPosition == -1 && savedPosition >= 0) {
+        if (savedPosition < iniFileManagerAdapter.getItemCount()) {
+          targetPosition = savedPosition;
+          Timber.d("Using saved position: %d", savedPosition);
+        }
+      }
+      
+      // 滚动到目标位置
+      if (targetPosition != -1) {
+        final int finalPosition = targetPosition;
+        ensureRecyclerViewReady(() -> performScrollToPosition(finalPosition));
+      } else {
+        Timber.d("Failed to restore - targetPosition: %d", targetPosition);
+      }
+    }, 300);
+  }
 
-  private void saveData() {
+  private void ensureRecyclerViewReady(Runnable action) {
+    if (swipeRecyclerView == null) {
+      return;
+    }
+    if (!swipeRecyclerView.isLaidOut()) {
+      swipeRecyclerView.getViewTreeObserver()
+          .addOnGlobalLayoutListener(
+              new ViewTreeObserver.OnGlobalLayoutListener() {
+                @Override
+                public void onGlobalLayout() {
+                  swipeRecyclerView.getViewTreeObserver().removeOnGlobalLayoutListener(this);
+                  swipeRecyclerView.post(action);
+                }
+              });
+    } else {
+      swipeRecyclerView.post(action);
+    }
+  }
+
+  private void performScrollToPosition(int position) {
+    if (swipeRecyclerView == null) {
+      return;
+    }
+    RecyclerView.LayoutManager lm = swipeRecyclerView.getLayoutManager();
+    if (lm instanceof LinearLayoutManager layoutManager) {
+      layoutManager.scrollToPositionWithOffset(position, 0);
+    } else {
+      swipeRecyclerView.scrollToPosition(position);
+    }
+    Timber.d("Scrolling to position: %d", position);
+  }
+
+    private void saveData() {
     SharedPreferences.Editor editor = sharedpreferences.edit();
     editor.putInt("curTranInterface_flag", PopupUtils.curTranInterface_flag);
-    editor.commit();
+    editor.apply();
 
   }
 
@@ -924,36 +977,7 @@ public class IniFileManagerActivity extends AppCompatActivity {
     }
   }
 
-  private String getRightPath(String path) {
-    File f = new File(AppConfig.externalProjectDir, path);
-    File[] list = f.listFiles();
-    if (list.length == 1 && list[0].isDirectory()) return list[0].getAbsolutePath();
-    else return path;
-  }
-
-  /**
-   * 获取选中的文件列表
-   * @return 选中的IniFileModel列表
-   */
-  public List<IniFileModel> getSelectedFiles() {
-    if (adapter != null) {
-      return adapter.getSelectedItems();
-    }
-    return new ArrayList<>();
-  }
-  
-  /**
-   * 获取选中文件的数量
-   * @return 选中文件数量
-   */
-  public int getSelectedCount() {
-    if (multiSelectManager != null) {
-      return multiSelectManager.getSelectedCount();
-    }
-    return 0;
-  }
-
-  private void ensureExit() {
+    private void ensureExit() {
     if (!modifiedList.isEmpty())
       new MaterialAlertDialogBuilder(context)
           .setTitle(clickdir)

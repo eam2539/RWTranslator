@@ -1,7 +1,5 @@
 package com.eam.rwtranslator.utils;
 
-import android.text.TextUtils;
-
 import androidx.annotation.NonNull;
 import androidx.collection.LruCache;
 import androidx.core.content.ContextCompat;
@@ -20,13 +18,14 @@ import app.nekogram.translator.YandexTranslator;
 import com.eam.rwtranslator.AppConfig;
 import com.eam.rwtranslator.ui.setting.AppSettings;
 import com.eam.rwtranslator.utils.translator.BaseLLMTranslator;
-import com.eam.rwtranslator.utils.translator.GeminiTranslator;
+import com.eam.rwtranslator.utils.translator.OpenAITranslator;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Executors;
 
@@ -41,6 +40,23 @@ public class Translator {
         void onError(Throwable t);
     }
 
+    public interface BatchTranslateCallBack {
+        void onSuccess(List<String> translations, String sourceLanguage, String targetLanguage);
+
+        void onError(Throwable t);
+        
+        /**
+         * 进度更新回调（可选实现，用于多批次翻译时的进度报告）
+         * @param batchIndex 当前批次索引（从0开始）
+         * @param totalBatches 总批次数
+         * @param completedTexts 已完成的文本数量
+         * @param totalTexts 总文本数量
+         */
+        default void onProgress(int batchIndex, int totalBatches, int completedTexts, int totalTexts) {
+            // 默认空实现，子类可选择性覆盖以显示进度
+        }
+    }
+
     public static final String PROVIDER_GOOGLE = "google";
     public static final String PROVIDER_MICROSOFT = "microsoft";
     public static final String PROVIDER_YANDEX = "yandex";
@@ -49,8 +65,7 @@ public class Translator {
     public static final String PROVIDER_SOGOU = "sogou";
     public static final String PROVIDER_TENCENT = "tencent";
     //LLM 翻译器标签
-    public static final String PROVIDER_GEMINI = "gemini-2.0-flash";
-    public static final String PROVIDER_GEMINI_LITE = "gemini-2.0-flash-lite";
+    public static final String PROVIDER_OPENAI = "openai";
 
     private static final ListeningExecutorService executorService =
             MoreExecutors.listeningDecorator(Executors.newCachedThreadPool());
@@ -76,36 +91,9 @@ public class Translator {
             case PROVIDER_SOGOU -> SogouTranslator.getInstance();
             case PROVIDER_TENCENT -> TranSmartTranslator.getInstance();
             case PROVIDER_YANDEX -> YandexTranslator.getInstance();
-            case PROVIDER_GEMINI -> new GeminiTranslator(PROVIDER_GEMINI);
-            case PROVIDER_GEMINI_LITE -> new GeminiTranslator(PROVIDER_GEMINI_LITE);
+            case PROVIDER_OPENAI -> new OpenAITranslator();
             default -> GoogleAppTranslator.getInstance();
         };
-    }
-
-    public static String getLLMTranslatorCodeByIndex(int index) {
-        return switch (index) {
-            case 0 -> PROVIDER_GEMINI;
-            case 1 -> PROVIDER_GEMINI_LITE;
-            default -> PROVIDER_GEMINI_LITE;
-        };
-    }
-
-    public static String getTranslatorCode(BaseTranslator translator) {
-        if (translator instanceof DeepLTranslator) {
-            return PROVIDER_DEEPL;
-        } else if (translator instanceof YandexTranslator) {
-            return PROVIDER_YANDEX;
-        } else if (translator instanceof MicrosoftTranslator) {
-            return PROVIDER_MICROSOFT;
-        } else if (translator instanceof BaiduTranslator) {
-            return PROVIDER_BAIDU;
-        } else if (translator instanceof SogouTranslator) {
-            return PROVIDER_SOGOU;
-        } else if (translator instanceof TranSmartTranslator) {
-            return PROVIDER_TENCENT;
-        }else {
-            return PROVIDER_GOOGLE;
-        }
     }
 
     public static String getTranslatorCodeByIndex(int index) {
@@ -117,29 +105,22 @@ public class Translator {
             case 4 -> PROVIDER_MICROSOFT;
             case 5 -> PROVIDER_DEEPL;
             case 6 -> PROVIDER_YANDEX;
-            default -> PROVIDER_GOOGLE; // 默认返回有道翻译
+            default -> PROVIDER_SOGOU; // 默认返回有道翻译
         };
     }
 
-    private static String getCurrentTargetLanguage() {
-        return AppSettings.CurrentTargetLanguage;
-    }
-
-    private static String getCurrentFromLanguage() {
-        return AppSettings.CurrentFromLanguage;
-    }
-
     public static void translate(String query, TranslateCallBack translateCallBack) {
-        translate(query, getCurrentFromLanguage(), getCurrentTargetLanguage(), translateCallBack);
+        translate(query, AppSettings.getCurrentFromLanguageCode(), AppSettings.getCurrentTargetLanguageCode(), translateCallBack);
     }
 
     public static void translate(
             String query, String fl, String tl, TranslateCallBack translateCallBack) {
         BaseTranslator translator = getCurrentTranslator();
-        String language = tl == null ? getCurrentTargetLanguage() : tl;
+        String language;
+        language = tl == null ? AppSettings.getCurrentTargetLanguageCode() : tl;
 
         if (!translator.supportLanguage(language)) {
-            translateCallBack.onError(new UnsupportedTargetLanguageException());
+            translateCallBack.onError(new UnsupportedTargetLanguageException(language));
         } else {
             startTask(translator, query, fl, language, translateCallBack);
         }
@@ -147,11 +128,44 @@ public class Translator {
 
     public static void LLM_translate(String query, String fl, String tl, TranslateCallBack translateCallBack) {
         BaseLLMTranslator llmTranslator = (BaseLLMTranslator) getCurrentTranslator();
-        String language = tl == null ? getCurrentTargetLanguage() : tl;
         llmTranslator.translate(query, fl, tl, translateCallBack);
     }
 
+    /**
+     * 批量LLM翻译，将多个文本合并为一个请求
+     * @param queries 待翻译的文本列表
+     * @param fl 源语言
+     * @param tl 目标语言
+     * @param batchCallBack 批量翻译回调
+     */
+    public static void LLM_batchTranslate(List<String> queries, String fl, String tl, BatchTranslateCallBack batchCallBack) {
+        BaseTranslator translator = getCurrentTranslator();
+        
+        // 只有OpenAI翻译器支持真正的批量翻译
+        OpenAITranslator openAITranslator = (OpenAITranslator) translator;
+        openAITranslator.batchTranslate(queries, fl, tl, new OpenAITranslator.BatchTranslateCallback() {
+            @Override
+            public void onSuccess(List<String> translations, String srcLang, String tgtLang) {
+                batchCallBack.onSuccess(translations, srcLang, tgtLang);
+            }
+
+            @Override
+            public void onError(Throwable t) {
+                batchCallBack.onError(t);
+            }
+
+            @Override
+            public void onProgress(int batchIndex, int totalBatches, int completedTexts, int totalTexts) {
+                // 传递进度回调
+                batchCallBack.onProgress(batchIndex, totalBatches, completedTexts, totalTexts);
+            }
+        });
+    }
+
     private static class UnsupportedTargetLanguageException extends IllegalArgumentException {
+        public UnsupportedTargetLanguageException(String targetLanguage) {
+            super("Unsupported Target Language: " + targetLanguage);
+        }
     }
 
     private static void startTask(

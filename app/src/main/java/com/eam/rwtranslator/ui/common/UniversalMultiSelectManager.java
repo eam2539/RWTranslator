@@ -298,9 +298,13 @@ public class UniversalMultiSelectManager {
         
         if (isMultiSelectMode) {
             isMultiSelectMode = false;
+            Set<Integer> previouslySelected = decorator.getSelectedPositions();
             decorator.clearSelections();
             rotateMultiSelectButton(false);
             updateSubtitle();
+            if (adapter != null && previouslySelected != null && !previouslySelected.isEmpty()) {
+                adapter.notifyItemsSelectionChanged(previouslySelected);
+            }
             adapter.notifyExitMultiSelectMode();
             
             if (listener != null) {
